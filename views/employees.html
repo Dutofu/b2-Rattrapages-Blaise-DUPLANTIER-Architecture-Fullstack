@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Employés</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <a href="/">Retour au tableau de bord</a>
+    <h1>Employés</h1>
+    <div id="employees"></div>
+    <h2>Ajouter un Employé</h2>
+    <form id="addEmployeeForm">
+        <input type="text" id="employeeName" placeholder="Nom" required>
+        <input type="email" id="employeeEmail" placeholder="Email" required>
+        <label>
+            Actif:
+            <input type="checkbox" id="employeeActive">
+        </label>
+        <select id="employeeRestaurantId" required>
+            <option value="" disabled selected>Sélectionner un restaurant</option>
+        </select>
+        <button type="submit">Ajouter</button>
+    </form>
+
+    <!-- Formulaire de modification caché -->
+    <div id="editEmployeeFormContainer" style="display:none;">
+        <h2>Modifier l'Employé</h2>
+        <form id="editEmployeeForm">
+            <input type="text" id="editEmployeeName" placeholder="Nom" required>
+            <input type="email" id="editEmployeeEmail" placeholder="Email" required>
+            <label>
+                Actif:
+                <input type="checkbox" id="editEmployeeActive">
+            </label>
+            <select id="editEmployeeRestaurantId" required>
+                <option value="" disabled>Sélectionner un restaurant</option>
+            </select>
+            <button type="submit">Enregistrer</button>
+            <button type="button" onclick="hideEditForm()">Annuler</button>
+        </form>
+    </div>
+
+    <script>
+        let currentEmployeeId;
+
+        function fetchEmployees() {
+            fetch('/api/employees')
+                .then(response => response.json())
+                .then(data => {
+                    const employeesDiv = document.getElementById('employees');
+                    employeesDiv.innerHTML = '';
+                    data.forEach(employee => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <strong>${employee.name}</strong> - ${employee.restaurant ? employee.restaurant.name : 'Aucun restaurant assigné'} <br> ${employee.email} <br> ${employee.active ? 'Actif' : 'Inactif'}
+                            <br>Date de création : ${new Date(employee.createdAt).toLocaleString()}
+                            <br>Date de mise à jour : ${new Date(employee.updatedAt).toLocaleString()}
+                            <br><button onclick="deleteEmployee(${employee.id})">Supprimer</button>
+                            <button onclick="editEmployee(${employee.id}, '${employee.name}', '${employee.email}', ${employee.active}, ${employee.restaurantId})">Modifier</button>
+                            <br><br>
+                        `;
+                        employeesDiv.appendChild(div);
+                    });
+                });
+        }
+
+        function fetchRestaurants() {
+            fetch('/api/restaurants')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('employeeRestaurantId');
+                    data.forEach(restaurant => {
+                        const option = document.createElement('option');
+                        option.value = restaurant.id;
+                        option.textContent = restaurant.name;
+                        select.appendChild(option);
+                    });
+                });
+        }
+
+        function fetchRestaurantsForEdit(selectedRestaurantId) {
+            fetch('/api/restaurants')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('editEmployeeRestaurantId');
+                    select.innerHTML = '<option value="" disabled>Sélectionner un restaurant</option>';
+                    data.forEach(restaurant => {
+                        const option = document.createElement('option');
+                        option.value = restaurant.id;
+                        option.textContent = restaurant.name;
+                        if (restaurant.id === selectedRestaurantId) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                });
+        }
+
+        document.getElementById('addEmployeeForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('employeeName').value;
+            const email = document.getElementById('employeeEmail').value;
+            const restaurantId = document.getElementById('employeeRestaurantId').value;
+            const active = document.getElementById('employeeActive').checked;
+
+            fetch('/api/employees', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, email, active, restaurantId })
+            }).then(response => response.json())
+              .then(() => {
+                  document.getElementById('employeeName').value = '';
+                  document.getElementById('employeeEmail').value = '';
+                  document.getElementById('employeeRestaurantId').value = '';
+                  document.getElementById('employeeActive').checked = false;
+                  fetchEmployees();
+              });
+        });
+
+        function deleteEmployee(id) {
+            fetch(`/api/employees/${id}`, {
+                method: 'DELETE'
+            }).then(() => {
+                fetchEmployees();
+            });
+        }
+
+        function editEmployee(id, name, email, active, restaurantId) {
+            currentEmployeeId = id;
+            document.getElementById('editEmployeeName').value = name;
+            document.getElementById('editEmployeeEmail').value = email;
+            document.getElementById('editEmployeeActive').checked = active;
+            fetchRestaurantsForEdit(restaurantId);
+
+            document.getElementById('editEmployeeFormContainer').style.display = 'block';
+        }
+
+        document.getElementById('editEmployeeForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('editEmployeeName').value;
+            const email = document.getElementById('editEmployeeEmail').value;
+            const restaurantId = document.getElementById('editEmployeeRestaurantId').value;
+            const active = document.getElementById('editEmployeeActive').checked;
+
+            fetch(`/api/employees/${currentEmployeeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, email, active, restaurantId })
+            }).then(() => {
+                hideEditForm();
+                fetchEmployees();
+            });
+        });
+
+        function hideEditForm() {
+            document.getElementById('editEmployeeFormContainer').style.display = 'none';
+        }
+
+        fetchEmployees();
+        fetchRestaurants();
+    </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Restaurants</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <a href="/">Retour au tableau de bord</a>
+    <h1>Restaurants</h1>
+    <div id="restaurants"></div>
+    <h2>Ajouter un Restaurant</h2>
+    <form id="addRestaurantForm">
+        <input type="text" id="restaurantName" placeholder="Nom" required>
+        <input type="text" id="restaurantLocation" placeholder="Emplacement" required>
+        <button type="submit">Ajouter</button>
+    </form>
+
+    <!-- Formulaire de modification caché -->
+    <div id="editRestaurantFormContainer" style="display:none;">
+        <h2>Modifier le Restaurant</h2>
+        <form id="editRestaurantForm">
+            <input type="text" id="editRestaurantName" placeholder="Nom" required>
+            <input type="text" id="editRestaurantLocation" placeholder="Emplacement" required>
+            <button type="submit">Enregistrer</button>
+            <button type="button" onclick="hideEditForm()">Annuler</button>
+        </form>
+    </div>
+
+    <script>
+        let currentRestaurantId;
+
+        function fetchRestaurants() {
+            fetch('/api/restaurants')
+                .then(response => response.json())
+                .then(data => {
+                    const restaurantsDiv = document.getElementById('restaurants');
+                    restaurantsDiv.innerHTML = '';
+                    data.forEach(restaurant => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <strong>${restaurant.name}</strong> - ${restaurant.location}
+                            <br>Date de création : ${new Date(restaurant.createdAt).toLocaleString()}
+                            <br>Date de mise à jour : ${new Date(restaurant.updatedAt).toLocaleString()}
+                            <br><button onclick="deleteRestaurant(${restaurant.id})">Supprimer</button>
+                            <button onclick="editRestaurant(${restaurant.id}, '${restaurant.name}', '${restaurant.location}')">Modifier</button>
+                            <br><br>
+                        `;
+                        restaurantsDiv.appendChild(div);
+                    });
+                });
+        }
+
+        document.getElementById('addRestaurantForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('restaurantName').value;
+            const location = document.getElementById('restaurantLocation').value;
+
+            fetch('/api/restaurants', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, location })
+            }).then(response => response.json())
+              .then(() => {
+                  document.getElementById('restaurantName').value = '';
+                  document.getElementById('restaurantLocation').value = '';
+                  fetchRestaurants();
+              });
+        });
+
+        function deleteRestaurant(id) {
+            fetch(`/api/restaurants/${id}`, {
+                method: 'DELETE'
+            }).then(() => {
+                fetchRestaurants();
+            });
+        }
+
+        function editRestaurant(id, name, location) {
+            currentRestaurantId = id;
+            document.getElementById('editRestaurantName').value = name;
+            document.getElementById('editRestaurantLocation').value = location;
+
+            document.getElementById('editRestaurantFormContainer').style.display = 'block';
+        }
+
+        document.getElementById('editRestaurantForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('editRestaurantName').value;
+            const location = document.getElementById('editRestaurantLocation').value;
+
+            fetch(`/api/restaurants/${currentRestaurantId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, location })
+            }).then(() => {
+                hideEditForm();
+                fetchRestaurants();
+            });
+        });
+
+        function hideEditForm() {
+            document.getElementById('editRestaurantFormContainer').style.display = 'none';
+        }
+
+        fetchRestaurants();
+    </script>
+</body>
+</html>
